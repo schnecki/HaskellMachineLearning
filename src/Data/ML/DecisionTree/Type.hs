@@ -8,9 +8,9 @@
 -- Created: Sat Jan  3 22:03:50 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 19:52:49 2015 (+0100)
+-- Last-Updated: Sun Mar  1 20:03:09 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 55
+--     Update #: 57
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -53,13 +53,9 @@ module Data.ML.DecisionTree.Type
 import Data.ML.Util.Util
 
 
--- import Control.Monad.Random
-import Data.Map (Map, (!))
-import Data.Ord (comparing)
-import qualified Data.List as L
+import Data.Map (Map)
 import qualified Data.Map as M
 import Control.Applicative
-import Debug.Trace
 
 
 data MinMax = Minimize | Maximize
