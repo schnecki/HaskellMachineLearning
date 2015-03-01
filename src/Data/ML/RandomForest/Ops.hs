@@ -7,9 +7,9 @@
 -- Created: Sat Feb 28 20:07:10 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 13:30:40 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:49:06 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 87
+--     Update #: 92
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -59,9 +59,9 @@ randomForest :: (Ord a, Ord b, RandomGen g) =>
              -> (a -> b)          -- Target attribute
              -> [DT.Attr a]      -- Attributes to classify on
              -> [a]              -- List of observations
-             -> Rand g (Forest a b)
+             -> Rand g (Forest a (Maybe b))
 randomForest nTrees target attrs =
-  randomForest' nTrees target attrs DT.Minimize DT.sumEntropy DT.NoPrune
+  randomForest' nTrees target attrs DT.Minimize (DT.impurity DT.entropy) DT.NoPrune
 
 
 -- | Advanced method for specifying own objective function.
@@ -73,7 +73,7 @@ randomForest' :: (Ord a, Ord b, RandomGen g) =>
               -> ([[b]] -> Float)  -- objective function
               -> DT.Pruning [b]   -- pruning setting
               -> [a]              -- List of observations
-              -> Rand g (Forest a b)
+              -> Rand g (Forest a (Maybe b))
 randomForest' = fun DT.fitTree
 
 -- | Simple caller method, which creates the decision trees.
@@ -112,7 +112,7 @@ randomForestLeaves = fun DT.fitTreeLeaves
 
 -- | This function is used to get the most likely decision on an input according
 -- to the given forest. See @decideLeaves@ for manual processing of the leaves.
-decide                  :: Ord b => Forest a b -> a -> b
+decide                  :: Ord b => Forest a b -> a -> Maybe b
 decide (Forest trees) a = mode $ map (`DT.decide` a) trees
 
 -- | This function returns all leaves of the forest for further manual

@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:57:24 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sat Feb 28 23:07:05 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:22:39 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 55
+--     Update #: 61
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -48,8 +48,9 @@ enum :: (Enum b, Bounded b) => [b]
 enum = [minBound .. maxBound]
 
 -- |Return the most common value in a list.
-mode :: Ord b => [b] -> b
-mode xs = fst $ L.maximumBy (O.comparing snd) $
+mode :: Ord b => [b] -> Maybe b
+mode [] = Nothing
+mode xs = return $ fst $ L.maximumBy (O.comparing snd) $
           map (head &&& length) $ L.group $ L.sort xs
 
 uniform :: Ord b => b -> [b] -> Float

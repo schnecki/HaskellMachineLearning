@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 23:25:42 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 13:28:06 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:23:49 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 56
+--     Update #: 72
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -41,6 +41,7 @@ module Data.ML.DecisionTree.Test where
 import Data.ML.DecisionTree.Ops
 import Data.ML.DecisionTree.Type
 import Data.ML.DecisionTree.Pretty()
+import Data.ML.MisclassificationRate
 
 -- import qualified AI.Learning.RandomForest as RF
 import Data.ML.Util.Util
@@ -164,20 +165,20 @@ actualTree = do
 fittedTreeRandom :: IO ()
 fittedTreeRandom = do
   rs <- evalRandIO (randomDataSetNoisy 0.23 120)
-  let tree = fitTree willWait atts Minimize sumEntropy NoPrune rs
+  let tree = fitTree willWait atts Minimize (impurity `by` entropy) NoPrune rs
   print $ pretty tree
 
 fittedTreeLeavesRandom :: IO ()
 fittedTreeLeavesRandom = do
   rs <- evalRandIO (randomDataSetNoisy 0.23 120)
-  let tree = fitTreeLeaves willWait atts Minimize sumEntropy NoPrune rs
+  let tree = fitTreeLeaves willWait atts Minimize (impurity `by` entropy) NoPrune rs
   print $ pretty tree
 
 
 fittedTreeUniformRandom :: IO ()
 fittedTreeUniformRandom = do
   rs <- evalRandIO (randomDataSetNoisy 0.23 120)
-  let tree = fitTreeUniform True willWait atts Minimize sumEntropy NoPrune rs
+  let tree = fitTreeUniform True willWait atts Minimize (impurity `by` entropy) NoPrune rs
   print $ pretty tree
 
 
@@ -214,16 +215,22 @@ restaurants =
  , Restaurant True  True  True  True  Full  Cheap     False False Burger  Med   True ]
 
 
-fittedTree :: DTree Restaurant () Bool
-fittedTree = fitTree willWait atts Minimize sumEntropy NoPrune restaurants
+fittedTree :: DTree Restaurant () (Maybe Bool)
+fittedTree = fitTree willWait atts Minimize (impurity `by` entropy) NoPrune restaurants
 
 
 fittedTreeUniform :: DTree Restaurant () Float
-fittedTreeUniform = fitTreeUniform True willWait atts Minimize sumEntropy NoPrune restaurants
+fittedTreeUniform =
+  fitTreeUniform True willWait atts Minimize (impurity `by` entropy) NoPrune restaurants
 
 
 fittedTreeLeaves :: DTree Restaurant () [Bool]
-fittedTreeLeaves = fitTreeLeaves willWait atts Minimize sumEntropy NoPrune restaurants
+fittedTreeLeaves = fitTreeLeaves willWait atts Minimize (impurity `by` entropy) NoPrune restaurants
+
+
+-- mcrDec :: [Restaurant] -> [Bool] -> Double
+-- mcrDec = mcr (decide  fittedTree)
+
 
 --
 -- Test.hs ends here

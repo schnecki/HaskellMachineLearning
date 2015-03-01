@@ -8,9 +8,9 @@
 -- Created: Sat Jan  3 22:03:50 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 13:22:35 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:52:49 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 47
+--     Update #: 55
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -59,6 +59,7 @@ import Data.Ord (comparing)
 import qualified Data.List as L
 import qualified Data.Map as M
 import Control.Applicative
+import Debug.Trace
 
 
 data MinMax = Minimize | Maximize
@@ -87,10 +88,10 @@ instance Eq (Attr a) where
 data DTree a i b = Result b
                  | Decision (Attr a) i (Map Int (DTree a i b))
 
-
 instance Show b => Show (DTree a i b) where
   show (Result b) = show b
-  show (Decision attr _ ts) = "Decision " ++ show attr ++ " " ++ show (zip (names attr) (M.elems ts))
+  show (Decision attr _ ts) = "Decision " ++ show attr ++ " " ++
+                              show (zip (names attr) (M.elems ts))
 
 
 instance Functor (DTree a i) where

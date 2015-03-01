@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 23:25:42 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 13:32:01 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:50:17 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 95
+--     Update #: 98
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -194,11 +194,11 @@ restaurants =
  , Restaurant True  True  True  True  Full  Cheap     False False Burger  Med   True ]
 
 
-forest :: IO (Forest Restaurant Bool)
+forest :: IO (Forest Restaurant (Maybe Bool))
 forest = evalRandIO $ randomForest 3 willWait atts restaurants
 
 
-forestRand :: IO (Forest Restaurant Bool)
+forestRand :: IO (Forest Restaurant (Maybe Bool))
 forestRand = do
   rs <- evalRandIO (randomDataSetNoisy 0.23 120)
   evalRandIO $ randomForest 3 willWait atts rs
@@ -207,14 +207,14 @@ forestRand = do
 forestLeavesIO :: IO ()
 forestLeavesIO = do
   fs <- evalRandIO $ randomForestLeaves 3
-        willWait atts DT.Minimize DT.sumEntropy DT.NoPrune restaurants
+        willWait atts DT.Minimize (DT.impurity DT.entropy) DT.NoPrune restaurants
   print $ pretty fs
 
 
 forestUniformIO :: IO ()
 forestUniformIO = do
   fs <- evalRandIO $ randomForestUniform True 3
-        willWait atts DT.Minimize DT.sumEntropy DT.NoPrune restaurants
+        willWait atts DT.Minimize (DT.impurity DT.entropy) DT.NoPrune restaurants
   print $ pretty fs
 
 
@@ -251,7 +251,7 @@ decideUniformForestRand r = do
   fs <- evalRandIO $ randomForest 3 willWait atts restaurants
   print $ pretty fs
   print r
-  print $ decideUniform True fs r
+  print $ decideUniform (Just True) fs r
 
 
 --

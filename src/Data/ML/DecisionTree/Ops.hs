@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:25:43 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 13:28:17 2015 (+0100)
+-- Last-Updated: Sun Mar  1 19:53:33 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 74
+--     Update #: 159
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -34,7 +34,7 @@
 
 -- Code:
 
--- | TODO: comment this module
+-- | This module implements a decision tree.
 module Data.ML.DecisionTree.Ops
     ( fitTree
     , fitTreeUniform
@@ -42,7 +42,11 @@ module Data.ML.DecisionTree.Ops
     , decide
     , attribute
     , mapI
-    , sumEntropy
+    , entropy
+    , missclassificationError
+    , giniIndex
+    , impurity
+    , by
     )
     where
 
@@ -54,9 +58,6 @@ import Data.Map (Map, (!))
 import Data.Ord (comparing)
 import qualified Data.List as L
 import qualified Data.Map as M
--- import Control.Arrow
--- import Control.Applicative
--- import Debug.Trace
 
 
 -- Map over the info part of the whole decision tree.
@@ -89,7 +90,7 @@ fitTree :: (Ord a, Ord b) =>
            -> ([[b]] -> Float)    -- objective function
            -> Pruning [b]        -- pruning setting
            -> [a]                -- data
-           -> DTree a () b
+           -> DTree a () (Maybe b)
 fitTree target atts minMax objFun pr as =
     dropInfo $ fmap mode $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
@@ -130,17 +131,17 @@ decisionTreeLearning :: Ord b =>
                         (a -> b) -- Target function
                      -> [Attr a] -- Attributes to split on
                      -> MinMax   -- Max/Min objective function
-                     -> ([[b]] -> Float)         -- objective function
+                     -> ([[b]] -> Float) -- objective function
                      -> [a]      -- Examples from the parent node
                      -> [a]      -- Examples to be split at this node
                      -> DTree a [b] [b]
 decisionTreeLearning target atts minMax objFun ps as
-  | null as = Result ps'
+  | null as = Result []
   | null atts || allEqual as' = Result as'
   | otherwise =
     Decision att as' (fmap (decisionTreeLearning target atts' minMax objFun as) m)
 
-  where ps' = map target ps
+  where -- ps' = map target ps
         as' = map target as
 
         (att,atts',m) =
@@ -161,22 +162,40 @@ partition att = L.foldl' fun initial
     initial = mkUniversalMap (vals att) []
 
 
------------------- Object Functions ------------------
+----------------- Impurity measures ------------------
 
+impurity :: Ord a => ([Float] -> Float) -> [[a]] -> Float
+impurity impFun as = (sum $ map (weightedImpurityLeaf impFun) as) / len
+  where len = fromIntegral (length $ concat as)
 
-entropy :: Ord a => [a] -> Float
-entropy as = entropy' probs
+by :: (t1 -> t) -> t1 -> t
+by f g = f g
+
+weightedImpurityLeaf :: (Ord a) => ([Float] -> Float) -> [a] -> Float
+weightedImpurityLeaf impFun as = impFun probs
   where
-    entropy' ps = negate . sum $ map (\p -> if p == 0 then 0 else p * log p) ps
     probs = map ((/len) . fromIntegral) $ M.elems $ L.foldl' go M.empty as
     len = fromIntegral (length as)
     go :: Ord k => Map k Int -> k -> Map k Int
     go m a = M.insertWith' (const (+1)) a 1 m
 
--- |When given a target function, this can be used as an input to the 'minSplit'
--- routine.
-sumEntropy :: (Ord b) => [[b]] -> Float
-sumEntropy as = sum $ map entropy as
+
+-- | This function is an impurity measure. It takes as input a list of floats
+-- (the ratio of occurrence [0,1], e.g. 1/3 = 0.333) and returns the entropy.
+entropy :: (Ord a, Floating a) => [a] -> a
+entropy p = sum (map (\x -> if x <= 0.00
+                            then 0.00
+                            else x * logBase 2 (1/x)) p)
+
+
+-- | This function is an impurity measure.
+missclassificationError :: (Ord a, Num a) => [a] -> a
+missclassificationError p = 1 - maximum p
+
+
+-- | This function is an impurity measure.
+giniIndex :: Floating a => [a] -> a
+giniIndex p = 1 - sum (map sqrt p)
 
 
 ---------------------- Pruning -----------------------
@@ -197,32 +216,12 @@ maxDecisions _ r = r
 
 
 -- |Prune decisions using a predicate.
-prune :: (b -> Bool) -> DTree a b b -> DTree a b b
-prune _ (Result b) = Result b
+prune                       :: (b -> Bool) -> DTree a b b -> DTree a b b
+prune _ (Result b)          = Result b
 prune p (Decision att i ts) =
-  if p i
-  then Result i
-  else Decision att i (fmap (prune p) ts)
-
-
----------------------- Testing -----------------------
-
-
--- |Compute the misclassification rate (MCR) of a particular decision tree
--- on a data set.
-mcr :: Eq b =>
-       (a -> b)                  -- Classification algorithm
-    -> [a]                       -- List of elements to be classified
-    -> [b]                       -- List of correct classifications
-    -> Double                    -- Misclassification rate
-mcr predfun as bs =
-  let bsPred = map predfun as
-      numCorrect = countIf id (zipWith (==) bs bsPred)
-      numTotal = length as
-  in fromIntegral (numTotal - numCorrect) / fromIntegral numTotal
-
-
-predfun xtrain ytrain xtest ytest = undefined
+                   if p i
+                   then Result i
+                   else Decision att i (fmap (prune p) ts)
 
 
 --
