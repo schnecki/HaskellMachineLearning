@@ -8,9 +8,9 @@
 -- Created: Sat Jan  3 22:03:50 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Sun Mar  1 20:03:09 2015 (+0100)
+-- Last-Updated: Mon Mar  2 17:50:30 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 57
+--     Update #: 77
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -43,6 +43,7 @@ module Data.ML.DecisionTree.Type
     , test
     , vals
     , label
+    , attrNr
     , DTree (..)
     , MinMax (..)
     , Pruning (..)
@@ -84,6 +85,7 @@ instance Eq (Attr a) where
 data DTree a i b = Result b
                  | Decision (Attr a) i (Map Int (DTree a i b))
 
+
 instance Show b => Show (DTree a i b) where
   show (Result b) = show b
   show (Decision attr _ ts) = "Decision " ++ show attr ++ " " ++
@@ -114,6 +116,10 @@ attr f = Attr (fromEnum . f) (map show vs) (map fromEnum vs)
   where
     vs = enum :: [b]
 
+attrNr :: (a -> Int) -> Int -> Int -> String -> Attr a
+attrNr f minVal maxVal = Attr (fromEnum . f) (map show vs) (map fromEnum vs)
+  where vs = map fromEnum [minVal..maxVal] :: [Int]
 
 --
 -- Type.hs ends here
+
