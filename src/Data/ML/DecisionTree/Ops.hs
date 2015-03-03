@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:25:43 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Tue Mar  3 09:38:08 2015 (+0100)
+-- Last-Updated: Tue Mar  3 13:48:16 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 193
+--     Update #: 244
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -58,6 +58,10 @@ import Data.ML.DecisionTree.Type
 import Data.Ord (comparing)
 import qualified Data.List as L
 import qualified Data.Map as M
+import Data.Function (on)
+import Control.Arrow
+import Data.Maybe (fromJust)
+
 
 import Debug.Trace
 
@@ -162,23 +166,40 @@ decisionTreeLearning target atts minMax objFun ps as
 
 -- |Partition a list based on a function that maps elements of the list to
 -- integers.
-partition :: Attr a -> [a] -> [(Attr a, M.Map Int [a])]
+-- partition :: Eq a => Attr a -> [a] -> [(Attr a, M.Map Int [a])]
+partition _ [] = []
 partition att as =
   case att of
     Attr {} -> [(att, L.foldl' fun initial as)]
       where
         fun m a = M.insertWith' (++) (test att a) [a] m
         initial = mkUniversalMap (vals att) []
-    AttrNr{} -> filter (not . hasEmptyList) $ -- filter out elements at start and end
-                map (\(a, rs) -> (insertVal a, L.foldl' (fun a) (initial a) rs)) (points as)
+    AttrNr{} ->
+                -- filter (not . hasEmptyList) $ -- filter out elements at start and end
+               --  map (\(a, rs) -> (insertVal a, L.foldl' (fun a) (initial a) rs)) (points as)
+      map (\(a, rs) -> (insertVal a, let nr = foldl isLeq 0 rs
+                                         isLeq acc x' = if testNr att x' <= testNr att a
+                                                       then acc + 1
+                                                       else acc
+                                         (x,y) = L.splitAt nr rs
+                                     in
+                                      M.fromList [(0,a : x), (1,y)]
+                       )) (map (second (++ asMaxs)) $ points asSorted')
       where
-        fun e m a = M.insertWith' (++) (if (testNr att a) <= (testNr att e)
-                                        then 0
-                                        else 1
-                                     ) [a] m
-        initial a = M.fromList [(0,[a]),(1,[])]
         insertVal a = att { val = Just $ testNr att a}
-        hasEmptyList (_, m) = any null (M.elems m)
+        -- fun e m a = M.insertWith' (++) (if (testNr att a) <= (testNr att e)
+        --                                 then 0
+        --                                 else 1
+        --                              ) [a] m
+        -- initial a = M.fromList [(0,[a]),(1,[])]
+        -- hasEmptyList (_, m) = any null (M.elems m)
+
+        asSorted = -- map head $ L.groupBy ((==) `on` testNr att) $
+                   L.sortBy ((compare `on` testNr att)) as
+        asSorted' = filter (not . (== testNr att asMax) . testNr att) asSorted
+        asMax = last asSorted
+        asMaxs = filter ((== testNr att asMax) . testNr att) asSorted
+
 
 ----------------- Impurity measures ------------------
 

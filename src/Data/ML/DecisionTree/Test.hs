@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 23:25:42 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Tue Mar  3 09:39:33 2015 (+0100)
+-- Last-Updated: Tue Mar  3 13:52:02 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 110
+--     Update #: 121
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -82,7 +82,7 @@ atts = [ attr alt "Alternative"
        , attr rain "Raining"
        , attr res "Reservation"
        , attr food "Food"
-       , attrNr occurs "ttt"
+       , attrNr occurs "Occurs"
        , attr wait "Wait" ]
 
 randomRestaurantNoisy :: RandomGen g => Float -> Rand g Restaurant
@@ -168,7 +168,7 @@ actualTree = do
 
 fittedTreeRandom :: IO ()
 fittedTreeRandom = do
-  rs <- evalRandIO (randomDataSetNoisy 0.23 12000)
+  rs <- evalRandIO (randomDataSetNoisy 0.23 1200)
   let tree = fitTree willWait atts Minimize (impurity `by` entropy) NoPrune rs
   print $ pretty tree
 
@@ -205,7 +205,7 @@ restaurant = Restaurant False True False True Some Cheap False True Burger None 
 
 restaurants :: [Restaurant]
 restaurants =
- [ Restaurant True  False False True  Some  Expensive False True  French  None  11 True
+ [ Restaurant True  False False True  Some  Expensive False True  French  None  10 True
  , Restaurant True  False False True  Full  Cheap     False False Thai    Med   1 False
  , Restaurant False True  False False Some  Cheap     False False Burger  None  10 True
  , Restaurant True  False True  True  Full  Cheap     True  False Thai    Short 10 True
@@ -213,9 +213,9 @@ restaurants =
  , Restaurant False True  False True  Some  Medium    True  True  Italian None  10 True
  , Restaurant False True  False False Empty Cheap     True  False Burger  None  1 False
  , Restaurant False False False True  Some  Medium    True  True  Thai    None  10 True
- , Restaurant False True  True  False Full  Cheap     True  False Burger  Long  0 True
- , Restaurant True  True  True  True  Full  Expensive False True  Italian Short 11 False
- , Restaurant False False False False Empty Cheap     False False Thai    None  11 False
+ , Restaurant False True  True  False Full  Cheap     True  False Burger  Long  10 True
+ , Restaurant True  True  True  True  Full  Expensive False True  Italian Short 1 False
+ , Restaurant False False False False Empty Cheap     False False Thai    None  1 False
  , Restaurant True  True  True  True  Full  Cheap     False False Burger  Med   10 True ]
 
 
