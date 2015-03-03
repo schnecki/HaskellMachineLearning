@@ -19,6 +19,8 @@
 </div>
 </div>
 
+**!!!NEW!!! Added possibility for numbers as attributes !!!NEW!!!**
+
 # Haskell Machine Learning<a id="sec-1" name="sec-1"></a>
 
 This is a machine learning library for Haskell.
