@@ -7,9 +7,9 @@
 -- Created: Thu Feb 26 18:16:39 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Thu Feb 26 18:32:30 2015 (+0100)
+-- Last-Updated: Tue Mar  3 09:06:58 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 10
+--     Update #: 11
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -54,6 +54,9 @@ instance (Pretty b) => Pretty (DTree a i b) where
                     (-- hang 2 $
                      vcat $ map (\(x,y) -> pretty x <> text ":" <+> pretty y)
                                                     (zip n $ M.elems m))
+  pretty (Decision (AttrNr _ v l) _ m) =
+                    hang 2 $ text l <+> text "<= " <+> text (show v) <> line <>
+                     vcat (map (\y -> pretty y) (M.elems m))
 
 
 --

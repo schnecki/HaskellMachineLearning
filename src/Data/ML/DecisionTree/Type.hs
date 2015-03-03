@@ -8,9 +8,9 @@
 -- Created: Sat Jan  3 22:03:50 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Mon Mar  2 17:50:30 2015 (+0100)
+-- Last-Updated: Tue Mar  3 09:29:52 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 77
+--     Update #: 100
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -40,9 +40,6 @@
 module Data.ML.DecisionTree.Type
     ( Attr (..)
     , attr
-    , test
-    , vals
-    , label
     , attrNr
     , DTree (..)
     , MinMax (..)
@@ -69,15 +66,24 @@ data Attr a = Attr
               , names :: [String]
               , vals :: [Int] -- ^
               , label :: String
+              } |
+              AttrNr
+              {
+                testNr :: a -> Double -- convert numbers to doubles !!!
+              , val :: Maybe Double
+              , labelNr :: String
               }
 
 instance Show (Attr a) where
-  show att = "Attr(" ++ label att ++ ") "
+  show (Attr _ _ _ l) = "Attr(" ++ l ++ ") "
+  show (AttrNr _ Nothing l) = "AttrNr(" ++ l ++ ")"
+  show (AttrNr _ (Just x) l) = "AttrNr(" ++ l ++ ") <= " ++ show x
 
 
 instance Eq (Attr a) where
-  Attr _ _ _ l1 == Attr _ _ _ l2 = l1 == l2
-
+  x1 == x2 = getLabel x1 == getLabel x2
+    where getLabel (Attr _ _ _ l) = l
+          getLabel (AttrNr _ _ l) = l
 
 -- |A decision tree which makes decisions based on attributes of type @a@ and
 -- returns results of type @b@. We store information of type @i@ at the nodes,
@@ -88,8 +94,11 @@ data DTree a i b = Result b
 
 instance Show b => Show (DTree a i b) where
   show (Result b) = show b
-  show (Decision attr _ ts) = "Decision " ++ show attr ++ " " ++
-                              show (zip (names attr) (M.elems ts))
+  show (Decision attr _ ts) =
+    "Decision " ++ show attr ++ " " ++
+    case attr of
+      Attr{} -> show (zip (names attr) (M.elems ts))
+      AttrNr{} -> show (M.elems ts)
 
 
 instance Functor (DTree a i) where
@@ -116,9 +125,8 @@ attr f = Attr (fromEnum . f) (map show vs) (map fromEnum vs)
   where
     vs = enum :: [b]
 
-attrNr :: (a -> Int) -> Int -> Int -> String -> Attr a
-attrNr f minVal maxVal = Attr (fromEnum . f) (map show vs) (map fromEnum vs)
-  where vs = map fromEnum [minVal..maxVal] :: [Int]
+attrNr   :: Show b => (a -> b) -> String -> Attr a
+attrNr f = AttrNr (read . show . f) Nothing
 
 --
 -- Type.hs ends here

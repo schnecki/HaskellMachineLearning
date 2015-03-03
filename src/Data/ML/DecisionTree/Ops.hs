@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:25:43 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Mon Mar  2 15:34:28 2015 (+0100)
+-- Last-Updated: Tue Mar  3 09:38:08 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 160
+--     Update #: 193
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -36,29 +36,30 @@
 
 -- | This module implements a decision tree.
 module Data.ML.DecisionTree.Ops
-    ( fitTree
-    , fitTreeUniform
-    , fitTreeLeaves
-    , decide
-    , attribute
-    , mapI
-    , entropy
-    , missclassificationError
-    , giniIndex
-    , impurity
-    , by
-    )
+    -- ( fitTree
+    -- , fitTreeUniform
+    -- , fitTreeLeaves
+    -- , decide
+    -- , attribute
+    -- , mapI
+    -- , entropy
+    -- , missclassificationError
+    -- , giniIndex
+    -- , impurity
+    -- , by
+
+    -- )
     where
 
 import Data.ML.Util.Util
 
 
 import Data.ML.DecisionTree.Type
-import Data.Map (Map, (!))
 import Data.Ord (comparing)
 import qualified Data.List as L
 import qualified Data.Map as M
 
+import Debug.Trace
 
 -- Map over the info part of the whole decision tree.
 mapI :: (i -> j) -> DTree a i b -> DTree a j b
@@ -73,50 +74,54 @@ dropInfo (Decision a _ b) = Decision a () (fmap dropInfo b)
 
 -- | Create a simple decision tree attribute.
 attribute :: (Enum b, Bounded b, Show b) => (a -> b) -> String -> DTree a () b
-attribute f label = Decision (attr f label) () tree
+attribute f l = Decision (attr f l) () tree
   where
     tree = M.fromList $ zip [0..] (map Result enum)
 
 -- |Run the decision tree on an example
 decide :: DTree a i b -> a -> b
 decide (Result b) _ = b
-decide (Decision att _ branches) a = decide (branches ! test att a) a
+decide (Decision att _ branches) a =
+  case att of
+    Attr{} -> decide (branches M.! test att a) a
+    AttrNr _ (Just v) _ -> decide (branches M.! nr) a
+      where nr = if testNr att a <= v then 0 else 1
+    AttrNr _ _ _ -> error "this should not happen!!!"
 
-
-fitTree :: (Ord a, Ord b) =>
-           (a -> b)              -- Function to get target attribute
-           -> [Attr a]           -- Attributes
-           -> MinMax             -- Max/Min objective function
-           -> ([[b]] -> Float)    -- objective function
-           -> Pruning [b]        -- pruning setting
-           -> [a]                -- data
-           -> DTree a () (Maybe b)
+-- fitTree :: (Ord a, Ord b) =>
+--            (a -> b)              -- Function to get target attribute
+--            -> [Attr a]           -- Attributes
+--            -> MinMax             -- Max/Min objective function
+--            -> ([[b]] -> Float)    -- objective function
+--            -> Pruning [b]        -- pruning setting
+--            -> [a]                -- data
+--            -> DTree a () (Maybe b)
 fitTree target atts minMax objFun pr as =
     dropInfo $ fmap mode $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
 
-fitTreeUniform :: (Ord a, Ord b) =>
-                  b               -- value to compare to
-               -> (a -> b)          -- function to get target attribute
-               -> [Attr a]         -- attributes
-               -> MinMax           -- Max/Min objective function
-               -> ([[b]] -> Float)  -- objective function
-               -> Pruning [b]      -- pruning setting
-               -> [a]              -- data
-               -> DTree a () Float
+-- fitTreeUniform :: (Ord a, Ord b) =>
+--                   b               -- value to compare to
+--                -> (a -> b)          -- function to get target attribute
+--                -> [Attr a]         -- attributes
+--                -> MinMax           -- Max/Min objective function
+--                -> ([[b]] -> Float)  -- objective function
+--                -> Pruning [b]      -- pruning setting
+--                -> [a]              -- data
+--                -> DTree a () Float
 fitTreeUniform val target atts minMax objFun pr as =
     dropInfo $ fmap (uniform val) $ doPrune pr $
     decisionTreeLearning target atts minMax objFun [] as
 
 
-fitTreeLeaves :: (Ord a, Ord b) =>
-                 (a -> b)         -- function to get target attribute
-              -> [Attr a]         -- attributes
-              -> MinMax           -- Max/Min objective function
-              -> ([[b]] -> Float)  -- objective function
-              -> Pruning [b]      -- pruning setting
-              -> [a]              -- data
-              -> DTree a () [b]
+-- fitTreeLeaves :: (Ord a, Ord b) =>
+--                  (a -> b)         -- function to get target attribute
+--               -> [Attr a]         -- attributes
+--               -> MinMax           -- Max/Min objective function
+--               -> ([[b]] -> Float)  -- objective function
+--               -> Pruning [b]      -- pruning setting
+--               -> [a]              -- data
+--               -> DTree a () [b]
 fitTreeLeaves target atts minMax objFun pr as =
     dropInfo $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
@@ -127,18 +132,19 @@ fitTreeLeaves target atts minMax objFun pr as =
 -- each leaf. You can 'fmap' the 'mode' function over the leaves to get the
 -- plurality value at that leaf, or the 'uniform' function to get a probability
 -- distribution.
-decisionTreeLearning :: Ord b =>
-                        (a -> b) -- Target function
-                     -> [Attr a] -- Attributes to split on
-                     -> MinMax   -- Max/Min objective function
-                     -> ([[b]] -> Float) -- objective function
-                     -> [a]      -- Examples from the parent node
-                     -> [a]      -- Examples to be split at this node
-                     -> DTree a [b] [b]
+-- decisionTreeLearning :: Ord b =>
+--                         (a -> b) -- Target function
+--                      -> [Attr a] -- Attributes to split on
+--                      -> MinMax   -- Max/Min objective function
+--                      -> ([[b]] -> Float) -- objective function
+--                      -> [a]      -- Examples from the parent node
+--                      -> [a]      -- Examples to be split at this node
+--                      -> DTree a [b] [b]
 decisionTreeLearning target atts minMax objFun ps as
   | null as = Result []
   | null atts || allEqual as' = Result as'
   | otherwise =
+    -- trace ("choices: " ++ show (points atts)) $
     Decision att as' (fmap (decisionTreeLearning target atts' minMax objFun as) m)
 
   where -- ps' = map target ps
@@ -151,16 +157,28 @@ decisionTreeLearning target atts minMax objFun ps as
           (comparing (\(_,_,m') -> objFun (map (map target) $ M.elems m')))
           choices
 
-        choices = [(att, atts', partition att as) | (att,atts') <- points atts]
+        choices = concat [[(att'', atts', split) | (att'',split) <- partition att' as]
+                         | (att',atts') <- points atts]
 
 -- |Partition a list based on a function that maps elements of the list to
 -- integers.
-partition :: Attr a -> [a] -> Map Int [a]
-partition att = L.foldl' fun initial
-  where
-    fun m a = M.insertWith' (++) (test att a) [a] m
-    initial = mkUniversalMap (vals att) []
-
+partition :: Attr a -> [a] -> [(Attr a, M.Map Int [a])]
+partition att as =
+  case att of
+    Attr {} -> [(att, L.foldl' fun initial as)]
+      where
+        fun m a = M.insertWith' (++) (test att a) [a] m
+        initial = mkUniversalMap (vals att) []
+    AttrNr{} -> filter (not . hasEmptyList) $ -- filter out elements at start and end
+                map (\(a, rs) -> (insertVal a, L.foldl' (fun a) (initial a) rs)) (points as)
+      where
+        fun e m a = M.insertWith' (++) (if (testNr att a) <= (testNr att e)
+                                        then 0
+                                        else 1
+                                     ) [a] m
+        initial a = M.fromList [(0,[a]),(1,[])]
+        insertVal a = att { val = Just $ testNr att a}
+        hasEmptyList (_, m) = any null (M.elems m)
 
 ----------------- Impurity measures ------------------
 
@@ -176,7 +194,7 @@ weightedImpurityLeaf impFun as = impFun probs
   where
     probs = map ((/len) . fromIntegral) $ M.elems $ L.foldl' go M.empty as
     len = fromIntegral (length as)
-    go :: Ord k => Map k Int -> k -> Map k Int
+    go :: Ord k => M.Map k Int -> k -> M.Map k Int
     go m a = M.insertWith' (const (+1)) a 1 m
 
 
