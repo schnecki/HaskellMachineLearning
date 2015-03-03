@@ -26,7 +26,7 @@ This is a machine learning library for Haskell.
 ## Implemented Algorithms<a id="sec-1-1" name="sec-1-1"></a>
 
 -   Decision Trees (see <http://www.iis.ee.ic.ac.uk/~tkkim/iccv09_tutorial>)
-    -   Pruning
+    -   Post-Pruning
     -   Manual objective function
 -   Random Forests (see <http://www.iis.ee.ic.ac.uk/~tkkim/iccv09_tutorial>)
     -   Automatic splitting of input data
@@ -49,4 +49,5 @@ This is a machine learning library for Haskell.
 
 ## Ideas for Future Work<a id="sec-1-3" name="sec-1-3"></a>
 
+-   Int/Double values in Decision Tree
 -   Reinforcement Learning Algorithms
