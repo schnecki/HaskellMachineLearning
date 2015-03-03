@@ -51,5 +51,4 @@ This is a machine learning library for Haskell.
 
 ## Ideas for Future Work<a id="sec-1-3" name="sec-1-3"></a>
 
--   Int/Double values in Decision Tree
 -   Reinforcement Learning Algorithms
