@@ -11,8 +11,7 @@ import           Text.PrettyPrint.ANSI.Leijen
 
 main :: IO ()
 main = do
-  let t = fitTreeUniform True disease attrDisease Minimize (impurity `by` giniIndex)
-          NoPrune dataDisease
+  let t = fitTree disease attrDisease Minimize (impurity `by` missclassificationError) NoPrune dataDisease
   print (pretty t)
 
   putStrLn $ "\n\nDecision on following tuple: " ++ show (head dataDisease)

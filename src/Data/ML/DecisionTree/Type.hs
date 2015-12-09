@@ -8,9 +8,9 @@
 -- Created: Sat Jan  3 22:03:50 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Tue Mar  3 09:29:52 2015 (+0100)
+-- Last-Updated: Wed Dec  9 18:18:14 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 100
+--     Update #: 103
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -89,34 +89,34 @@ instance Eq (Attr a) where
 -- returns results of type @b@. We store information of type @i@ at the nodes,
 -- which is useful for pruning the tree later.
 data DTree a i b = Result b
-                 | Decision (Attr a) i (Map Int (DTree a i b))
+                 | Decision (Attr a) Float i (Map Int (DTree a i b))
 
 
 instance Show b => Show (DTree a i b) where
   show (Result b) = show b
-  show (Decision attr _ ts) =
+  show (Decision attr i _ ts) =
     "Decision " ++ show attr ++ " " ++
     case attr of
       Attr{} -> show (zip (names attr) (M.elems ts))
-      AttrNr{} -> show (M.elems ts)
+      AttrNr{} -> show (M.elems ts) ++ " with imp: " ++ show i
 
 
 instance Functor (DTree a i) where
   fmap f (Result b) = Result (f b)
-  fmap f (Decision attr i branches) = Decision attr i (fmap (fmap f) branches)
+  fmap f (Decision attr imp i branches) = Decision attr imp i (fmap (fmap f) branches)
 
 
 instance Applicative (DTree a i) where
   pure = Result
   Result f <*> Result b = Result (f b)
-  Result f <*> Decision attr i branches = Decision attr i (fmap (Result f <*>) branches)
+  Result f <*> Decision attr imp i branches = Decision attr imp i (fmap (Result f <*>) branches)
   Decision{} <*> _ = error "Not implemented"
 
 
 instance Monad (DTree a i) where
   return = Result
   Result b >>= f = f b
-  Decision attr i ts >>= f = Decision attr i (fmap (>>=f) ts)
+  Decision attr imp i ts >>= f = Decision attr imp i (fmap (>>=f) ts)
 
 
 -- |Create an attribution from a function and its name.

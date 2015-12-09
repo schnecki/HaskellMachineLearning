@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:25:43 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Wed Dec  9 14:53:57 2015 (+0100)
+-- Last-Updated: Wed Dec  9 18:21:04 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 250
+--     Update #: 276
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -63,36 +63,36 @@ import Control.Arrow
 import Data.Maybe (fromJust)
 
 
--- import Debug.Trace
+import Debug.Trace
 
 -- Map over the info part of the whole decision tree.
 mapI :: (i -> j) -> DTree a i b -> DTree a j b
 mapI _ (Result b) = Result b
-mapI f (Decision att i branches) = Decision att (f i) (fmap (mapI f) branches)
+mapI f (Decision att imp i branches) = Decision att imp (f i) (fmap (mapI f) branches)
 
 
 -- Drop the info of the given decision tree.
 dropInfo :: DTree a i b -> DTree a () b
 dropInfo (Result b) = Result b
-dropInfo (Decision a _ b) = Decision a () (fmap dropInfo b)
+dropInfo (Decision a imp _ b) = Decision a imp () (fmap dropInfo b)
 
 -- | Create a simple decision tree attribute.
 attribute :: (Enum b, Bounded b, Show b) => (a -> b) -> String -> DTree a () b
-attribute f l = Decision (attr f l) () tree
+attribute f l = Decision (attr f l) 0 () tree
   where
     tree = M.fromList $ zip [0..] (map Result enum)
 
 -- |Run the decision tree on an example
 decide :: DTree a i b -> a -> b
 decide (Result b) _ = b
-decide (Decision att _ branches) a =
+decide (Decision att _ _ branches) a =
   case att of
     Attr{} -> decide (branches M.! test att a) a
     AttrNr _ (Just v) _ -> decide (branches M.! nr) a
       where nr = if testNr att a <= v then 0 else 1
     AttrNr {} -> error "this should not happen!!!"
 
-fitTree :: (Ord a, Ord b) =>
+fitTree :: (Show a, Ord a, Ord b) =>
            (a -> b)              -- Function to get target attribute
            -> [Attr a]           -- Attributes
            -> MinMax             -- Max/Min objective function
@@ -104,7 +104,7 @@ fitTree target atts minMax objFun pr as =
     dropInfo $ fmap mode $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
 
-fitTreeUniform :: (Ord a, Ord b) =>
+fitTreeUniform :: (Show a, Ord a, Ord b) =>
                   b               -- value to compare to
                -> (a -> b)          -- function to get target attribute
                -> [Attr a]         -- attributes
@@ -118,7 +118,7 @@ fitTreeUniform val target atts minMax objFun pr as =
     decisionTreeLearning target atts minMax objFun [] as
 
 
-fitTreeLeaves :: (Ord a, Ord b) =>
+fitTreeLeaves :: (Show a, Ord a, Ord b) =>
                  (a -> b)         -- function to get target attribute
               -> [Attr a]         -- attributes
               -> MinMax           -- Max/Min objective function
@@ -136,7 +136,7 @@ fitTreeLeaves target atts minMax objFun pr as =
 -- each leaf. You can 'fmap' the 'mode' function over the leaves to get the
 -- plurality value at that leaf, or the 'uniform' function to get a probability
 -- distribution.
-decisionTreeLearning :: (Eq a, Ord b) =>
+decisionTreeLearning :: (Show a, Eq a, Ord b) =>
                         (a -> b) -- Target function
                      -> [Attr a] -- Attributes to split on
                      -> MinMax   -- Max/Min objective function
@@ -148,21 +148,20 @@ decisionTreeLearning target atts minMax objFun _ as
   | null as = Result []
   | null atts || allEqual as' = Result as'
   | otherwise =
-    -- trace ("choices: " ++ show (points atts)) $
-    Decision att as' (fmap (decisionTreeLearning target atts' minMax objFun as) m)
 
-  where -- ps' = map target ps
-        as' = map target as
+    Decision att imp as' (fmap (decisionTreeLearning target atts' minMax objFun as) m)
 
-        (att,atts',m) =
+  where as' = map target as
+
+        (att,atts',m,imp) =
           (case minMax of
             Minimize -> L.minimumBy
-            Maximize -> L.maximumBy)
-          (comparing (\(_,_,m') -> objFun (map (map target) $ M.elems m')))
-          choices
+            Maximize -> L.maximumBy) (comparing (\(_,_,_,d) -> d)) nums
 
-        choices = concat [[(att'', atts', split) | (att'',split) <- partition att' as]
-                         | (att',atts') <- points atts]
+        nums = map (\(a,b,c) -> (a,b,c,objFun (map (map target) $ M.elems c))) choices
+
+        choices = concat [[(att'', atts'', split) | (att'',split) <- partition att' as]
+                         | (att', atts'') <- points atts]
 
 -- |Partition a list based on a function that maps elements of the list to
 -- integers.
@@ -182,9 +181,8 @@ partition att as =
                                                        then acc + 1
                                                        else acc
                                          (x,y) = L.splitAt nr rs
-                                     in
-                                      M.fromList [(0,a : x), (1,y)]
-                       )) (map (second (++ asMaxs)) $ points asSorted')
+                                     in M.fromList [(0,a : x), (1,y)]
+                      )) (map (second (++ asMaxs)) $ points asSorted')
       where
         insertVal a = att { val = Just $ testNr att a}
         -- fun e m a = M.insertWith' (++) (if (testNr att a) <= (testNr att e)
@@ -207,11 +205,14 @@ impurity :: Ord a => ([Float] -> Float) -> [[a]] -> Float
 impurity impFun as = sum (map (weightedImpurityLeaf impFun) as) / len
   where len = fromIntegral (length $ concat as)
 
+
 by :: (t1 -> t) -> t1 -> t
 by f = f
 
+
 weightedImpurityLeaf :: (Ord a) => ([Float] -> Float) -> [a] -> Float
-weightedImpurityLeaf impFun as = impFun probs
+weightedImpurityLeaf impFun as =
+  fromIntegral (length as) * impFun probs
   where
     probs = map ((/ len) . fromIntegral) $ M.elems $ L.foldl' go M.empty as
     len = fromIntegral (length as)
@@ -223,8 +224,8 @@ weightedImpurityLeaf impFun as = impFun probs
 -- (the ratio of occurrence [0,1], e.g. 1/3 = 0.333) and returns the entropy.
 entropy :: (Ord a, Floating a) => [a] -> a
 entropy p = sum (map (\x -> if x <= 0.00
-                            then 0.00
-                            else x * logBase 2 (1/x)) p)
+                           then 0.00
+                           else x * logBase 2 (1/x)) p)
 
 
 -- | This function is an impurity measure.
@@ -249,20 +250,20 @@ doPrune (Predicate f) dt = prune f dt
 
 -- |Prune a tree to have a maximum depth of decisions.
 maxDecisions :: Int -> DTree a b b -> DTree a b b
-maxDecisions i (Decision att as ts) =
+maxDecisions i (Decision att imp as ts) =
   if i == 0
   then Result as
-  else Decision att as $ fmap (maxDecisions (i-1)) ts
+  else Decision att imp as $ fmap (maxDecisions (i-1)) ts
 maxDecisions _ r = r
 
 
 -- |Prune decisions using a predicate.
 prune                       :: (b -> Bool) -> DTree a b b -> DTree a b b
 prune _ (Result b)          = Result b
-prune p (Decision att i ts) =
+prune p (Decision att imp i ts) =
                    if p i
                    then Result i
-                   else Decision att i (fmap (prune p) ts)
+                   else Decision att imp i (fmap (prune p) ts)
 
 
 --
