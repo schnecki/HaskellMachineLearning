@@ -7,9 +7,9 @@
 -- Created: Sat Jan  3 22:25:43 2015 (+0100)
 -- Version:
 -- Package-Requires: ()
--- Last-Updated: Tue Mar  3 13:48:16 2015 (+0100)
+-- Last-Updated: Wed Dec  9 14:53:57 2015 (+0100)
 --           By: Manuel Schneckenreither
---     Update #: 244
+--     Update #: 250
 -- URL:
 -- Doc URL:
 -- Keywords:
@@ -63,7 +63,7 @@ import Control.Arrow
 import Data.Maybe (fromJust)
 
 
-import Debug.Trace
+-- import Debug.Trace
 
 -- Map over the info part of the whole decision tree.
 mapI :: (i -> j) -> DTree a i b -> DTree a j b
@@ -90,42 +90,42 @@ decide (Decision att _ branches) a =
     Attr{} -> decide (branches M.! test att a) a
     AttrNr _ (Just v) _ -> decide (branches M.! nr) a
       where nr = if testNr att a <= v then 0 else 1
-    AttrNr _ _ _ -> error "this should not happen!!!"
+    AttrNr {} -> error "this should not happen!!!"
 
--- fitTree :: (Ord a, Ord b) =>
---            (a -> b)              -- Function to get target attribute
---            -> [Attr a]           -- Attributes
---            -> MinMax             -- Max/Min objective function
---            -> ([[b]] -> Float)    -- objective function
---            -> Pruning [b]        -- pruning setting
---            -> [a]                -- data
---            -> DTree a () (Maybe b)
+fitTree :: (Ord a, Ord b) =>
+           (a -> b)              -- Function to get target attribute
+           -> [Attr a]           -- Attributes
+           -> MinMax             -- Max/Min objective function
+           -> ([[b]] -> Float)    -- objective function
+           -> Pruning [b]        -- pruning setting
+           -> [a]                -- data
+           -> DTree a () (Maybe b)
 fitTree target atts minMax objFun pr as =
     dropInfo $ fmap mode $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
 
--- fitTreeUniform :: (Ord a, Ord b) =>
---                   b               -- value to compare to
---                -> (a -> b)          -- function to get target attribute
---                -> [Attr a]         -- attributes
---                -> MinMax           -- Max/Min objective function
---                -> ([[b]] -> Float)  -- objective function
---                -> Pruning [b]      -- pruning setting
---                -> [a]              -- data
---                -> DTree a () Float
+fitTreeUniform :: (Ord a, Ord b) =>
+                  b               -- value to compare to
+               -> (a -> b)          -- function to get target attribute
+               -> [Attr a]         -- attributes
+               -> MinMax           -- Max/Min objective function
+               -> ([[b]] -> Float)  -- objective function
+               -> Pruning [b]      -- pruning setting
+               -> [a]              -- data
+               -> DTree a () Float
 fitTreeUniform val target atts minMax objFun pr as =
     dropInfo $ fmap (uniform val) $ doPrune pr $
     decisionTreeLearning target atts minMax objFun [] as
 
 
--- fitTreeLeaves :: (Ord a, Ord b) =>
---                  (a -> b)         -- function to get target attribute
---               -> [Attr a]         -- attributes
---               -> MinMax           -- Max/Min objective function
---               -> ([[b]] -> Float)  -- objective function
---               -> Pruning [b]      -- pruning setting
---               -> [a]              -- data
---               -> DTree a () [b]
+fitTreeLeaves :: (Ord a, Ord b) =>
+                 (a -> b)         -- function to get target attribute
+              -> [Attr a]         -- attributes
+              -> MinMax           -- Max/Min objective function
+              -> ([[b]] -> Float)  -- objective function
+              -> Pruning [b]      -- pruning setting
+              -> [a]              -- data
+              -> DTree a () [b]
 fitTreeLeaves target atts minMax objFun pr as =
     dropInfo $ doPrune pr $ decisionTreeLearning target atts minMax objFun [] as
 
@@ -136,15 +136,15 @@ fitTreeLeaves target atts minMax objFun pr as =
 -- each leaf. You can 'fmap' the 'mode' function over the leaves to get the
 -- plurality value at that leaf, or the 'uniform' function to get a probability
 -- distribution.
--- decisionTreeLearning :: Ord b =>
---                         (a -> b) -- Target function
---                      -> [Attr a] -- Attributes to split on
---                      -> MinMax   -- Max/Min objective function
---                      -> ([[b]] -> Float) -- objective function
---                      -> [a]      -- Examples from the parent node
---                      -> [a]      -- Examples to be split at this node
---                      -> DTree a [b] [b]
-decisionTreeLearning target atts minMax objFun ps as
+decisionTreeLearning :: (Eq a, Ord b) =>
+                        (a -> b) -- Target function
+                     -> [Attr a] -- Attributes to split on
+                     -> MinMax   -- Max/Min objective function
+                     -> ([[b]] -> Float) -- objective function
+                     -> [a]      -- Examples from the parent node
+                     -> [a]      -- Examples to be split at this node
+                     -> DTree a [b] [b]
+decisionTreeLearning target atts minMax objFun _ as
   | null as = Result []
   | null atts || allEqual as' = Result as'
   | otherwise =
@@ -166,7 +166,7 @@ decisionTreeLearning target atts minMax objFun ps as
 
 -- |Partition a list based on a function that maps elements of the list to
 -- integers.
--- partition :: Eq a => Attr a -> [a] -> [(Attr a, M.Map Int [a])]
+partition :: Eq a => Attr a -> [a] -> [(Attr a, M.Map Int [a])]
 partition _ [] = []
 partition att as =
   case att of
@@ -195,8 +195,8 @@ partition att as =
         -- hasEmptyList (_, m) = any null (M.elems m)
 
         asSorted = -- map head $ L.groupBy ((==) `on` testNr att) $
-                   L.sortBy ((compare `on` testNr att)) as
-        asSorted' = filter (not . (== testNr att asMax) . testNr att) asSorted
+                   L.sortBy (compare `on` testNr att) as
+        asSorted' = filter ((/= testNr att asMax) . testNr att) asSorted
         asMax = last asSorted
         asMaxs = filter ((== testNr att asMax) . testNr att) asSorted
 
@@ -204,16 +204,16 @@ partition att as =
 ----------------- Impurity measures ------------------
 
 impurity :: Ord a => ([Float] -> Float) -> [[a]] -> Float
-impurity impFun as = (sum $ map (weightedImpurityLeaf impFun) as) / len
+impurity impFun as = sum (map (weightedImpurityLeaf impFun) as) / len
   where len = fromIntegral (length $ concat as)
 
 by :: (t1 -> t) -> t1 -> t
-by f g = f g
+by f = f
 
 weightedImpurityLeaf :: (Ord a) => ([Float] -> Float) -> [a] -> Float
 weightedImpurityLeaf impFun as = impFun probs
   where
-    probs = map ((/len) . fromIntegral) $ M.elems $ L.foldl' go M.empty as
+    probs = map ((/ len) . fromIntegral) $ M.elems $ L.foldl' go M.empty as
     len = fromIntegral (length as)
     go :: Ord k => M.Map k Int -> k -> M.Map k Int
     go m a = M.insertWith' (const (+1)) a 1 m
@@ -229,12 +229,14 @@ entropy p = sum (map (\x -> if x <= 0.00
 
 -- | This function is an impurity measure.
 missclassificationError :: (Ord a, Num a) => [a] -> a
+missclassificationError [] = 1
 missclassificationError p = 1 - maximum p
 
 
 -- | This function is an impurity measure.
 giniIndex :: Floating a => [a] -> a
-giniIndex p = 1 - sum (map sqrt p)
+-- giniIndex p = 1 - sum (map sqrt p)
+giniIndex p = 1 - sum (map (^2) p)
 
 
 ---------------------- Pruning -----------------------
